@@ -1,0 +1,186 @@
+/* XY Plot Viewer webview chrome. Layout is ported from the source browser app
+   (xy_plot_viewer.html); every color is driven by VS Code theme variables so it
+   works in light, dark and high-contrast themes. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size, 13px);
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+}
+body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+}
+header .icon { width: 28px; height: 28px; flex-shrink: 0; }
+header .icon svg { width: 28px; height: 28px; }
+header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+header p { font-size: 11px; margin: 2px 0 0; color: var(--vscode-descriptionForeground); }
+header .menu { margin-left: auto; display: flex; gap: 8px; }
+
+main {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  min-height: 0;
+}
+
+.panel {
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel > h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--vscode-descriptionForeground);
+  margin: 0 0 10px;
+  font-weight: 700;
+}
+
+#files-panel { width: 260px; flex-shrink: 0; }
+#labels-panel { width: 300px; flex-shrink: 0; overflow-y: auto; display: none; }
+#labels-panel.visible { display: flex; }
+#plot-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.btn {
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+  cursor: pointer;
+}
+.btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
+}
+.btn-accent {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-border, transparent);
+  font-weight: 600;
+}
+.btn-accent:hover { background: var(--vscode-button-hoverBackground); }
+.btn:focus-visible,
+input:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+.btn-row { display: flex; gap: 6px; }
+.btn-row .btn { flex: 1; }
+
+#folder-hint { font-size: 11px; color: var(--vscode-descriptionForeground); margin: 8px 0 10px; }
+
+#file-list {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  border-radius: 4px;
+  min-height: 80px;
+}
+#file-list .file-item {
+  padding: 6px 10px;
+  font-size: 12.5px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+}
+#file-list .file-item:hover { background: var(--vscode-list-hoverBackground); }
+#file-list .file-item.selected {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+#file-list .empty { padding: 14px 10px; color: var(--vscode-descriptionForeground); font-size: 12px; }
+
+fieldset { border: none; margin: 12px 0 0; padding: 0; }
+legend {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 6px;
+  padding: 0;
+}
+.radio-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; margin: 3px 0; }
+
+.field-row { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+.field-row label { font-size: 12.5px; color: var(--vscode-descriptionForeground); white-space: nowrap; }
+
+input[type="number"], input[type="text"] {
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.35)));
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  width: 100%;
+}
+input::placeholder { color: var(--vscode-input-placeholderForeground); }
+#bins-input { width: 64px; }
+
+.section-heading {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vscode-descriptionForeground);
+  margin: 14px 0 4px;
+}
+.hint { font-size: 11px; color: var(--vscode-descriptionForeground); line-height: 1.4; }
+
+#dataset-filter { margin: 8px 0; }
+#dataset-list {
+  flex: 0 0 240px;
+  overflow-y: auto;
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  border-radius: 4px;
+  padding: 4px;
+}
+.dataset-row { display: flex; align-items: center; gap: 6px; padding: 3px 4px; font-size: 12px; }
+.dataset-row .swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.5));
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+}
+.dataset-row label {
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#plot-div { flex: 1; min-height: 0; border-radius: 4px; }
+
+footer {
+  background: var(--vscode-statusBar-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-statusBar-foreground, var(--vscode-descriptionForeground));
+  font-size: 11.5px;
+  padding: 5px 14px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }

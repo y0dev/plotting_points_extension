@@ -1,0 +1,157 @@
+{
+  "name": "xy-plot-viewer",
+  "displayName": "XY Plot Viewer",
+  "description": "Open .xy / .y data files (or a whole folder) in a webview and plot them with Plotly — line plots and overlaid histograms. Runs fully offline.",
+  "version": "0.1.0",
+  "publisher": "devdoesit",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#171E2B",
+    "theme": "dark"
+  },
+  "author": {
+    "name": "Devontae Reid",
+    "url": "https://www.devontaereid.com"
+  },
+  "homepage": "https://www.devontaereid.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/y0dev/plotting_points_extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/y0dev/plotting_points_extension/issues"
+  },
+  "qna": false,
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=18"
+  },
+  "categories": [
+    "Visualization",
+    "Data Science"
+  ],
+  "keywords": [
+    "xy",
+    "plot",
+    "plotly",
+    "histogram",
+    "chart",
+    "data"
+  ],
+  "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true,
+      "description": "Data files and configs are parsed as text / JSON and never executed; the viewer only reads .xy / .y files and writes the config JSON you explicitly save."
+    }
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "xyPlot.viewer",
+        "displayName": "XY Plot Viewer",
+        "selector": [
+          { "filenamePattern": "*.xy" },
+          { "filenamePattern": "*.y" },
+          { "filenamePattern": "*.Y" }
+        ],
+        "priority": "option"
+      }
+    ],
+    "commands": [
+      {
+        "command": "xyPlot.open",
+        "title": "Open in XY Plot Viewer",
+        "category": "XY Plot"
+      },
+      {
+        "command": "xyPlot.openFolder",
+        "title": "Open Folder in XY Plot Viewer",
+        "category": "XY Plot"
+      },
+      {
+        "command": "xyPlot.saveConfig",
+        "title": "Save Config",
+        "category": "XY Plot"
+      },
+      {
+        "command": "xyPlot.loadConfig",
+        "title": "Load Config",
+        "category": "XY Plot"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "xyPlot.open",
+          "when": "resourceExtname =~ /\\.(xy|y)$/i",
+          "group": "navigation@30"
+        },
+        {
+          "command": "xyPlot.openFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation@30"
+        }
+      ],
+      "commandPalette": [
+        { "command": "xyPlot.open", "when": "false" },
+        { "command": "xyPlot.openFolder" },
+        { "command": "xyPlot.saveConfig" },
+        { "command": "xyPlot.loadConfig" }
+      ]
+    },
+    "configuration": {
+      "title": "XY Plot Viewer",
+      "properties": {
+        "xyPlot.defaultBins": {
+          "type": "number",
+          "default": 20,
+          "minimum": 2,
+          "maximum": 200,
+          "description": "Default bin count for the histogram view."
+        },
+        "xyPlot.defaultView": {
+          "type": "string",
+          "enum": ["auto", "line", "histogram"],
+          "default": "auto",
+          "description": "Default view for an opened file. 'auto' = line for .xy, histogram for .y."
+        },
+        "xyPlot.palette": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [
+            "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+            "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"
+          ],
+          "description": "Color palette cycled by dataset index."
+        },
+        "xyPlot.autoLoadConfig": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically load an xy_plot_config.json sitting next to the data files when the viewer opens."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "esbuild": "^0.23.0",
+    "plotly.js": "^2.35.2",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

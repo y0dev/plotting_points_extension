@@ -1,0 +1,62 @@
+{
+  "colors": {
+    "palette": [
+      "#1f77b4",
+      "#ff7f0e",
+      "#2ca02c",
+      "#d62728",
+      "#9467bd",
+      "#8c564b",
+      "#e377c2",
+      "#7f7f7f",
+      "#bcbd22",
+      "#17becf"
+    ],
+    "dataset_colors": {
+      "Match_RunA": "#2ca02c",
+      "MisMatch_RunB": "#d62728",
+      "Baseline_Control": "#7f7f7f"
+    }
+  },
+  "plot_settings": {
+    "overrides": {
+      "match_scan_001": {
+        "displayTitle": "Match Scan — Run 001",
+        "xlabel": "Scan Position",
+        "ylabel": "Signal Amplitude"
+      },
+      "calibration_002": {
+        "displayTitle": "Calibration Sweep — Run 002",
+        "xlabel": "Calibration Step"
+      }
+    },
+    "xlabel": "Runs",
+    "ylabel": "Value",
+    "showLegend": true
+  },
+  "histogram_settings": {
+    "overrides": {
+      "sensor_noise": {
+        "displayTitle": "Sensor Noise Distribution"
+      }
+    },
+    "bins": 25,
+    "xlabel": "Measured Value",
+    "ylabel": "Count",
+    "showLegend": true
+  },
+  "histogram3d_settings": {
+    "overrides": {
+      "calibration_002": {
+        "displayTitle": "Calibration Sweep (3D)"
+      }
+    },
+    "bins": 15,
+    "xlabel": "Value",
+    "ylabel": "Dataset",
+    "zlabel": "Count"
+  },
+  "visibility": {
+    "hidden_names": []
+  }
+}
