@@ -2,7 +2,7 @@
   "name": "xy-plot-viewer",
   "displayName": "XY Plot Viewer",
   "description": "Open .xy / .y data files (or a whole folder) in a webview and plot them with Plotly — line plots and overlaid histograms. Runs fully offline.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "devdoesit",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -80,9 +80,35 @@
         "category": "XY Plot"
       },
       {
-        "command": "xyPlot.loadConfig",
-        "title": "Load Config",
-        "category": "XY Plot"
+        "command": "xyPlot.refreshFilesView",
+        "title": "Refresh Data Files",
+        "category": "XY Plot",
+        "icon": "$(refresh)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "xyPlot",
+          "title": "XY Plot Viewer",
+          "icon": "media/activity-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "xyPlot": [
+        {
+          "id": "xyPlot.filesView",
+          "name": "Data Files",
+          "contextualTitle": "XY Plot Viewer",
+          "icon": "media/activity-icon.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "xyPlot.filesView",
+        "contents": "No `.xy` or `.y` files found in this workspace.\n[Open Folder in XY Plot Viewer](command:xyPlot.openFolder)"
       }
     ],
     "menus": {
@@ -98,11 +124,18 @@
           "group": "navigation@30"
         }
       ],
+      "view/title": [
+        {
+          "command": "xyPlot.refreshFilesView",
+          "when": "view == xyPlot.filesView",
+          "group": "navigation"
+        }
+      ],
       "commandPalette": [
         { "command": "xyPlot.open", "when": "false" },
         { "command": "xyPlot.openFolder" },
         { "command": "xyPlot.saveConfig" },
-        { "command": "xyPlot.loadConfig" }
+        { "command": "xyPlot.refreshFilesView", "when": "false" }
       ]
     },
     "configuration": {

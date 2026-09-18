@@ -46,6 +46,18 @@ describe("resolveNamingLabels", () => {
     });
   });
 
+  it("a wildcard rule applies to every matching file, not just one", () => {
+    const rules: NamingRule[] = [
+      { match: "match_scan_*", xlabel: "Scan Position", ylabel: "Signal Amplitude" },
+    ];
+    const expected = { xlabel: "Scan Position", ylabel: "Signal Amplitude" };
+    expect(resolveNamingLabels(rules, "match_scan_001")).toEqual(expected);
+    expect(resolveNamingLabels(rules, "match_scan_002")).toEqual(expected);
+    expect(resolveNamingLabels(rules, "match_scan_anything_else")).toEqual(expected);
+    // an unrelated file is untouched
+    expect(resolveNamingLabels(rules, "calibration_002")).toEqual({});
+  });
+
   it("merges multiple matching rules, later rule winning per-field", () => {
     const rules: NamingRule[] = [
       { match: "*", xlabel: "Value" },

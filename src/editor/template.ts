@@ -2,10 +2,12 @@
  * Builds the webview HTML. The chrome here is a purpose-built VS Code panel,
  * not a port of the source browser app's page layout: a thin toolbar (view
  * switch + inspector toggle), the plot filling the rest of the space, and
- * everything else — file list, bins & legend, dataset colors/labels, config
- * actions — tucked into a slide-out inspector drawer, in the spirit of VS
- * Code's own Explorer / Outline side panels. Styling comes from `ui.css` and
- * every color is theme-driven.
+ * bins & legend / dataset colors & labels / config actions tucked into a
+ * slide-out inspector drawer, in the spirit of VS Code's own Explorer /
+ * Outline side panels. The file list itself lives outside the webview, in
+ * the "Data Files" Activity Bar view (src/views/dataFilesProvider.ts) —
+ * clicking a file there opens it in its own editor tab. Styling comes from
+ * `ui.css` and every color is theme-driven.
  */
 
 export interface TemplateUris {
@@ -78,20 +80,15 @@ export function renderTemplate(u: TemplateUris): string {
   <main id="stage">
     <div id="plot-div"></div>
     <div id="empty-hint" class="hint" hidden>
-      Open a .xy or .y file, or use the panel (top right) to load a folder.
+      Open a .xy or .y file — the Data Files view in the Activity Bar lists
+      every one in this workspace.
     </div>
   </main>
 
   <footer id="status-bar">No file selected.</footer>
 
-  <aside id="inspector" aria-hidden="true" aria-label="Files, datasets and config">
+  <aside id="inspector" aria-hidden="true" aria-label="Datasets and config">
     <div class="inspector-scroll">
-      <section class="inspector-section">
-        <h2>Data Files</h2>
-        <div id="folder-hint" class="hint">No files loaded.</div>
-        <div id="file-list"><div class="empty">No files loaded.</div></div>
-      </section>
-
       <section class="inspector-section">
         <h2>Bins &amp; Legend</h2>
         <div class="field-row">
@@ -134,10 +131,10 @@ export function renderTemplate(u: TemplateUris): string {
 
       <section class="inspector-section">
         <h2>Config</h2>
-        <div class="btn-row">
-          <button class="btn" id="save-config-btn">Save Config</button>
-          <button class="btn" id="load-config-btn">Load Config</button>
-        </div>
+        <button class="btn btn-block" id="save-config-btn">Save Config</button>
+        <div class="hint">Turn on <code>xyPlot.autoLoadConfig</code> to load a
+          saved <code>xy_plot_config.json</code> automatically when it sits
+          next to the data — there's no separate load button.</div>
       </section>
     </div>
   </aside>

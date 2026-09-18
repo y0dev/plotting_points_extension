@@ -8,7 +8,8 @@ save/load-able config.
 
 The parsing and plotting math is a port of a single-file browser app; the
 panel itself is not — it's a purpose-built VS Code panel (a thin toolbar +
-slide-out inspector, see below), not the source app's page layout. VS Code
+slide-out inspector, see below) plus a **Data Files** view in the Activity
+Bar for browsing and opening files, not the source app's page layout. VS Code
 theme integration, workspace config, commands, and a **fully offline** Plotly
 bundle (no CDN) round it out. The source app's 3D-histogram view is dropped —
 it required Plotly's `scatter3d` trace, which more than doubled the bundle
@@ -22,11 +23,31 @@ size.
 
 | From | Do this |
 | --- | --- |
-| A single file | Right-click a `.xy` / `.y` file → **Open in XY Plot Viewer**, or *File ▸ Open With… ▸ XY Plot Viewer*. The containing folder is scanned so you can switch between its other data files. |
+| Browsing | Click the XY Plot icon in the **Activity Bar** (the far-left icon rail) → the **Data Files** view lists every `.xy` / `.y` file in the workspace; click one to open it. |
+| A single file | Right-click a `.xy` / `.y` file → **Open in XY Plot Viewer**, or *File ▸ Open With… ▸ XY Plot Viewer*. |
 | A folder | Right-click a folder → **Open Folder in XY Plot Viewer**, or run **XY Plot: Open Folder in XY Plot Viewer** from the Command Palette. If you pick a folder from outside the workspace (an instrument's output folder, Downloads, …), its `.xy` / `.y` files are copied into the project first — see [Importing from outside the workspace](#importing-from-outside-the-workspace). |
 
 The custom editor is registered with priority `option`, so it never replaces the
 default text editor for `.xy` / `.y` — you opt in per file.
+
+### Data Files (Activity Bar)
+
+The Activity Bar icon opens a tree view, **Data Files**, listing every `.xy`
+/ `.y` file found anywhere in the workspace (sorted by relative path, folder
+shown as the item's description). It's a plain file browser, not a
+per-editor list — clicking an item opens that file in its own editor tab via
+`xyPlot.open`, and switching between multiple open files is VS Code's own tab
+bar, the same as any other file type.
+
+- The $(refresh) button in the view's title bar re-scans the workspace; it
+  also refreshes on its own when a `.xy` / `.y` file is created or deleted
+  (including files `xyPlot.openFolder` copies in — see
+  [Importing from outside the workspace](#importing-from-outside-the-workspace)).
+- No workspace open, or none found, shows a welcome message with a shortcut
+  to **Open Folder in XY Plot Viewer**.
+- This replaced an earlier design where the file list lived inside the
+  webview's inspector drawer — it's a workspace-wide browser now, not
+  scoped to whichever file happens to be open.
 
 ### Build from source
 
@@ -102,13 +123,27 @@ input (min 2, max 200) applies to the histogram view.
 | **Line plot** | One `scatter` trace per visible dataset, `mode: "lines+markers"`, marker size 5, line & marker color = the dataset's resolved color. |
 | **Histogram** | One `histogram` trace per visible dataset over that dataset's **y-values**, `nbinsx = bins`, `opacity 0.6`, `barmode: "overlay"`. |
 
+Hovering a data point shows its dataset name in full — `layout.hoverlabel.namelength`
+is set to `-1`, overriding Plotly's default 15-character truncation, so a long
+dataset name (`Baseline_Control_Sensor_04`, say) never gets cut down to
+`Baseline_Contro…` in the tooltip.
+
+**Zooming**: scroll the mouse wheel over the plot to zoom in/out (`scrollZoom:
+true`), in addition to the modebar's zoom / pan / box-select / lasso-select
+tools and click-drag box zoom, which work the same as any Plotly chart.
+Double-click resets the view. The modebar's camera ("Download plot as a png")
+button is removed — it relies on triggering a browser file download, which
+doesn't work inside a VS Code webview, so it did nothing.
+
 ### The inspector
 
 The toolbar is deliberately minimal: a Line / Histogram switch and one gear
-button. Everything else — the file list, bins & legend, dataset colors /
-visibility, and the label fields below — lives in the inspector, a drawer that
-slides in from the right when you click the gear (and back out when you click
-it again); the plot fills the rest of the window either way.
+button. Everything else for the *currently open* file — bins & legend,
+dataset colors / visibility, and the label fields below — lives in the
+inspector, a drawer that slides in from the right when you click the gear
+(and back out when you click it again); the plot fills the rest of the window
+either way. (Browsing and opening files is the separate
+[Data Files](#data-files-activity-bar) Activity Bar view, not this drawer.)
 
 Inside it, per dataset: a color swatch (`<input type=color>` override) and a
 visibility checkbox, plus a case-insensitive name filter and
@@ -118,7 +153,7 @@ visibility checkbox, plus a case-insensitive name filter and
 
 - **Title** override is stored per original title.
 - In **line** mode, X / Y labels are per-title overrides that fall back to a
-  file-name match in `xyPlot.namingRules` (see [Settings](#settings)), then to
+  file-name match in [`xyPlot.namingRules`](#2-xyplotnamingrules--auto-fill-labels-by-file-name), then to
   the mode's global label. In **histogram** mode they set the mode's global
   label directly — histogram's label is shared by every loaded file, so
   per-file naming rules don't apply there.
@@ -130,12 +165,33 @@ The status bar reads `"<file> — <n> dataset(s) — <mode> view"`.
 
 ---
 
-## Config save / load
+## Configuration
 
-**Save Config** (inspector button or **XY Plot: Save Config**) writes a JSON file —
-by default `.vscode/xy-plot/xy_plot_config.json`, or wherever the Save dialog
-points. **Load Config** applies one back (tolerant of missing keys; same
-defaults as above; `showLegend` is treated as `!== false`).
+Three mechanisms, from most to least specific — a more specific one always
+wins over a less specific one:
+
+| | Scope | Lives in | Applies |
+| --- | --- | --- | --- |
+| 1. **Set** buttons | one file | `xy_plot_config.json`, written when you click Save Config | when `xyPlot.autoLoadConfig` finds it next to the data |
+| 2. [`xyPlot.namingRules`](#2-xyplotnamingrules--auto-fill-labels-by-file-name) | every file matching a pattern | VS Code settings | automatically, live |
+| 3. [Settings](#3-other-settings) | the whole extension | VS Code settings | defaults for anything not overridden above |
+
+### 1. Save Config, then let auto-load apply it — step by step
+
+There's a Save Config button but no separate Load Config one — loading is
+driven entirely by the `xyPlot.autoLoadConfig` setting, not by a manual pick-a-
+file step:
+
+1. Open the inspector (gear icon, top right) and set colors, visibility, and
+   labels the way you want them.
+2. Click **Save Config** (or run **XY Plot: Save Config**). The Save dialog
+   defaults to `.vscode/xy-plot/xy_plot_config.json` in the current workspace
+   folder — pick anywhere you like, though it has to sit next to the data
+   files for step 3 to find it.
+3. Turn on `xyPlot.autoLoadConfig` (see [Settings](#3-other-settings)). Any
+   viewer opened after that loads `xy_plot_config.json` on its own whenever
+   one sits next to the data files — missing keys fall back to the defaults
+   below; `showLegend` is treated as `!== false`.
 
 ```jsonc
 {
@@ -151,15 +207,61 @@ defaults as above; `showLegend` is treated as `!== false`).
 }
 ```
 
+`plot_settings.overrides` is keyed by a file's exact **original title** (its
+name with the extension stripped) — a `"match_scan_001"` key affects only
+`match_scan_001.xy`, not `match_scan_002.xy` too. If you want one rule to
+cover every file with a shared prefix, that's what `xyPlot.namingRules` is
+for, next.
+
 The default color palette, cycled by dataset index:
 
 `#1f77b4 #ff7f0e #2ca02c #d62728 #9467bd #8c564b #e377c2 #7f7f7f #bcbd22 #17becf`
 
 A sample is at [`examples/xy_plot_config.json`](examples/xy_plot_config.json).
 
----
+### 2. `xyPlot.namingRules` — auto-fill labels by file name
 
-## Settings
+Unlike `plot_settings.overrides` above, a naming rule's `match` is a **glob**
+(only `*` is special), so one rule can apply to a whole family of files —
+`"match_scan_*"` matches `match_scan_001`, `match_scan_002`,
+`match_scan_anything`, checked case-insensitively against the file name with
+its extension stripped. Both example `.xy` files
+([`match_scan_001.xy`](examples/match_scan_001.xy),
+[`match_scan_002.xy`](examples/match_scan_002.xy)) pick up the same rule this
+way — try it:
+
+1. Command Palette → **Preferences: Open Workspace Settings (JSON)** (this
+   project only) or **…User Settings (JSON)** (every workspace).
+2. Add (or copy from [`examples/settings.namingRules.jsonc`](examples/settings.namingRules.jsonc)):
+
+   ```jsonc
+   "xyPlot.namingRules": [
+     { "match": "match_scan_*", "xlabel": "Scan Position", "ylabel": "Signal Amplitude" },
+     { "match": "calibration_*", "xlabel": "Calibration Step" },
+     { "match": "*_noise", "ylabel": "Noise (mV)" }
+   ]
+   ```
+3. Save. Any `match_scan_*.xy` file already open in a viewer relabels
+   immediately — no need to close and reopen it.
+
+A rule's fields are `{ match, xlabel?, ylabel?, title? }`, and only apply in
+**line** mode (histogram's label is one field shared by every loaded file, so
+per-file rules have nothing to attach to there). Rules are checked in array
+order; when more than one matches, later rules override earlier ones
+field-by-field, not as a whole, so a broad rule can set a default and a
+narrower one can override just one field.
+
+Set it in **User settings** for a rule that should apply everywhere, or in
+this workspace's **`.vscode/settings.json`** for project-specific rules —
+unlike a normal VS Code setting, the two are *merged* here (User rules first,
+Workspace rules appended and taking precedence on conflict), not one
+replacing the other.
+
+A label set through the inspector's **Set** buttons and saved to
+`xy_plot_config.json` always wins over a naming rule — naming rules only fill
+in a default, they never override something you typed.
+
+### 3. Other settings
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
@@ -167,7 +269,6 @@ A sample is at [`examples/xy_plot_config.json`](examples/xy_plot_config.json).
 | `xyPlot.defaultView` | `auto` | `auto` (line for `.xy`, histogram for `.y`), or force `line` / `histogram`. |
 | `xyPlot.palette` | 10-color default | Palette cycled by dataset index. |
 | `xyPlot.autoLoadConfig` | `false` | If an `xy_plot_config.json` sits next to the data files, load it when the viewer opens. |
-| `xyPlot.namingRules` | `[]` | Auto-fill a file's line-mode X/Y labels and title by file name — see below. |
 | `xyPlot.importFolder` | `"data"` | Where **Open Folder** copies files to when the folder you pick is outside the workspace — see below. |
 
 Per-file UI state (view mode, inspector open, selected file) is remembered in
@@ -189,34 +290,6 @@ workspace differently:
   folder only pulls in what's new.
 - No workspace open at all → there's nowhere to import into, so it falls back
   to opening the original folder in place (with a warning).
-
-### `xyPlot.namingRules` — label a file by its name, not by hand
-
-An array of `{ match, xlabel?, ylabel?, title? }`. `match` is a small glob
-(only `*` is special) checked case-insensitively against a file's **original
-title** — its name with the extension stripped. Rules are checked in array
-order; when more than one matches, later rules override earlier ones
-field-by-field (not whole-rule replacement), so a broad rule can set a default
-and a narrower one just override one field:
-
-```jsonc
-// settings.json — global (User) or this workspace's .vscode/settings.json (local)
-"xyPlot.namingRules": [
-  { "match": "*", "xlabel": "Value" },
-  { "match": "match_scan_*", "xlabel": "Scan Position", "ylabel": "Signal Amplitude" },
-  { "match": "*_noise", "ylabel": "Noise (mV)" }
-]
-```
-
-Set it in **User settings** for a rule that should apply to every workspace,
-or in **this workspace's** `.vscode/settings.json` for project-specific rules
-— unlike a normal VS Code setting, the two are *merged* here (User rules
-first, Workspace rules appended and taking precedence on conflict), not one
-replacing the other.
-
-A label set through the inspector's **Set** buttons and saved to
-`xy_plot_config.json` always wins over a naming rule — naming rules only fill
-in a default, they never override something you typed.
 
 ---
 
@@ -275,7 +348,10 @@ src/webview/  panel UI + Plotly wiring: renderLine / renderHistogram /
 src/editor/   the CustomTextEditorProvider (webview HTML + CSP + nonce,
               sibling-folder scan, workspaceState, config auto-load, naming-rule
               scope merging, message pump) and the HTML template.
-src/commands/ open, openFolder, saveConfig, loadConfig.
+src/commands/ open, openFolder, saveConfig.
+src/views/    DataFilesProvider — the "Data Files" Activity Bar tree view
+              (workspace-wide file browser + a FileSystemWatcher-driven
+              refresh), independent of the webview / custom editor.
 src/protocol.ts   typed host <-> webview messages.
 ```
 
@@ -289,6 +365,7 @@ alongside Plotly's `webview.css`.
 
 | Version | Highlights |
 | --- | --- |
+| 0.3.0 | Data Files moved to an Activity Bar view; full dataset names on hover; mouse-wheel zoom; the broken "download png" button removed; Load Config removed in favor of `xyPlot.autoLoadConfig`; live-updating `xyPlot.namingRules`; README Configuration walkthrough. |
 | 0.2.0 | Native-inspector redesign (toolbar + slide-out drawer, replacing the ported page layout); `xyPlot.namingRules` — auto-fill axis labels/title by file name. |
 | 0.1.0 | Initial release: line + histogram views, Datasets & Labels panel, config save/load, offline Plotly bundle. |
 

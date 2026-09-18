@@ -5,8 +5,10 @@
  * `localResourceRoots` limited to `media/`).
  *
  * The extension never writes `.xy` / `.y` files — this is a read-only editor
- * with respect to the data. Config, however, round-trips to a workspace JSON
- * file through the Save / Load Config messages handled here.
+ * with respect to the data. Save Config writes the current state to a
+ * workspace JSON file (handled here); there is no manual load counterpart —
+ * `xyPlot.autoLoadConfig` is the only way a saved config gets applied, and
+ * that happens as part of sendLoadFiles below.
  */
 import * as vscode from "vscode";
 import * as path from "path";
@@ -30,7 +32,7 @@ interface PanelCtx {
 }
 
 export class XyPlotEditorProvider implements vscode.CustomTextEditorProvider {
-  /** The panel that last had focus — target for the Save / Load Config commands. */
+  /** The panel that last had focus — target for the Save Config command. */
   private static active: PanelCtx | undefined;
   private readonly panels = new Set<PanelCtx>();
 
@@ -50,14 +52,6 @@ export class XyPlotEditorProvider implements vscode.CustomTextEditorProvider {
     void XyPlotEditorProvider.active.panel.webview.postMessage({
       type: "requestSaveConfig",
     } satisfies HostToWebview);
-    return true;
-  }
-
-  /** Show an open dialog and push the chosen config into the focused viewer. */
-  static async loadConfigInteractive(): Promise<boolean> {
-    const ctx = XyPlotEditorProvider.active;
-    if (!ctx) return false;
-    await pushConfigFromDialog(ctx);
     return true;
   }
 
@@ -105,9 +99,6 @@ export class XyPlotEditorProvider implements vscode.CustomTextEditorProvider {
         case "saveConfig":
           await saveConfigToFile(ctx, msg.raw);
           break;
-        case "requestConfigLoad":
-          await pushConfigFromDialog(ctx);
-          break;
         case "status":
           // Reserved for a future status-bar item; nothing to do here.
           break;
@@ -125,8 +116,20 @@ export class XyPlotEditorProvider implements vscode.CustomTextEditorProvider {
       }
     });
 
+    // Apply an xyPlot.namingRules edit immediately, without reopening the
+    // file: re-read the merged rules and re-render, leaving everything else
+    // (colors, visibility, the currently selected file) untouched — unlike
+    // sendLoadFiles, which re-reads the data files too and would reset those.
+    const configSub = vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("xyPlot.namingRules", document.uri)) {
+        const namingRules = readNamingRules(vscode.workspace.getConfiguration("xyPlot", document.uri));
+        void ctx.panel.webview.postMessage({ type: "setNamingRules", namingRules } satisfies HostToWebview);
+      }
+    });
+
     webviewPanel.onDidDispose(() => {
       docSub.dispose();
+      configSub.dispose();
       this.panels.delete(ctx);
       if (XyPlotEditorProvider.active === ctx) {
         XyPlotEditorProvider.active = this.panels.values().next().value ?? undefined;
@@ -270,25 +273,3 @@ async function saveConfigToFile(ctx: PanelCtx, raw: unknown): Promise<void> {
   );
 }
 
-async function pushConfigFromDialog(ctx: PanelCtx): Promise<void> {
-  const picked = await vscode.window.showOpenDialog({
-    canSelectMany: false,
-    filters: { JSON: ["json"] },
-    defaultUri: ctx.dir,
-    openLabel: "Load XY Plot Config",
-  });
-  if (!picked || !picked.length) return;
-
-  const parsed = await tryReadJson(picked[0]);
-  if (parsed === undefined) {
-    void vscode.window.showErrorMessage(
-      `Could not read ${path.basename(picked[0].fsPath)} as JSON.`,
-    );
-    return;
-  }
-  void ctx.panel.webview.postMessage({
-    type: "loadConfig",
-    raw: parsed,
-    source: path.basename(picked[0].fsPath),
-  } satisfies HostToWebview);
-}

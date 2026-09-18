@@ -43,13 +43,6 @@ export interface LoadFilesMsg {
   config?: unknown;
 }
 
-export interface LoadConfigMsg {
-  type: "loadConfig";
-  raw: unknown;
-  /** Origin label for the status bar (e.g. the file name). */
-  source?: string;
-}
-
 export interface SetViewModeMsg {
   type: "setViewMode";
   mode: ViewMode;
@@ -59,11 +52,17 @@ export interface RequestSaveConfigMsg {
   type: "requestSaveConfig";
 }
 
+/** Live update when `xyPlot.namingRules` changes while a viewer is already open. */
+export interface SetNamingRulesMsg {
+  type: "setNamingRules";
+  namingRules: NamingRule[];
+}
+
 export type HostToWebview =
   | LoadFilesMsg
-  | LoadConfigMsg
   | SetViewModeMsg
-  | RequestSaveConfigMsg;
+  | RequestSaveConfigMsg
+  | SetNamingRulesMsg;
 
 /* ---- webview → host -------------------------------------------------- */
 
@@ -74,10 +73,6 @@ export interface ReadyMsg {
 export interface SaveConfigMsg {
   type: "saveConfig";
   raw: unknown;
-}
-
-export interface RequestConfigLoadMsg {
-  type: "requestConfigLoad";
 }
 
 export interface PersistUiStateMsg {
@@ -93,6 +88,5 @@ export interface StatusMsg {
 export type WebviewToHost =
   | ReadyMsg
   | SaveConfigMsg
-  | RequestConfigLoadMsg
   | PersistUiStateMsg
   | StatusMsg;

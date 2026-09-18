@@ -7,9 +7,10 @@
  *
  * The chrome itself is not a port of the source app's layout: there is one
  * toolbar (view switch + inspector toggle), the plot fills the rest of the
- * space, and the file list / bins & legend / dataset labels / config actions
- * all live in a single slide-out inspector drawer instead of always-visible
- * side panels.
+ * space, and bins & legend / dataset labels / config actions live in a
+ * single slide-out inspector drawer instead of always-visible side panels.
+ * The file list itself lives outside the webview entirely, in the "Data
+ * Files" Activity Bar view (src/views/dataFilesProvider.ts).
  */
 import type {
   HostToWebview,
@@ -107,8 +108,6 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
   document.getElementById(id) as T;
 
 const el = {
-  fileList: $("file-list"),
-  folderHint: $("folder-hint"),
   viewLineBtn: $<HTMLButtonElement>("view-line-btn"),
   viewHistBtn: $<HTMLButtonElement>("view-hist-btn"),
   binsInput: $<HTMLInputElement>("bins-input"),
@@ -130,27 +129,15 @@ const el = {
   emptyHint: $("empty-hint"),
   statusBar: $("status-bar"),
   saveConfigBtn: $<HTMLButtonElement>("save-config-btn"),
-  loadConfigBtn: $<HTMLButtonElement>("load-config-btn"),
 };
 
 /* =========================================================================
-   FILE LIST
+   FILE SELECTION
+   (the visible file list itself now lives in the "Data Files" Activity Bar
+   view — src/views/dataFilesProvider.ts — not in the webview; each file still
+   opens in its own editor tab, and sibling files loaded here are only used to
+   pick the one to show, per uiState / the primary file that was opened.)
    ========================================================================= */
-
-function renderFileList(): void {
-  el.fileList.innerHTML = "";
-  if (!state.files.length) {
-    el.fileList.innerHTML = '<div class="empty">No files loaded.</div>';
-    return;
-  }
-  state.files.forEach((file, index) => {
-    const row = document.createElement("div");
-    row.className = "file-item" + (index === state.currentIndex ? " selected" : "");
-    row.textContent = file.name;
-    row.addEventListener("click", () => selectFile(index));
-    el.fileList.appendChild(row);
-  });
-}
 
 function viewForFile(file: LoadedFile): ViewMode {
   if (defaultView !== "auto") return defaultView;
@@ -162,7 +149,6 @@ function selectFile(index: number, keepViewMode = false): void {
   const file = state.files[index];
   if (!keepViewMode) state.viewMode = viewForFile(file);
   syncViewButtons();
-  renderFileList();
   renderPlot();
   persistUiState();
 }
@@ -322,18 +308,6 @@ el.saveConfigBtn.addEventListener("click", () => {
   post({ type: "saveConfig", raw: serializeConfig(configView) });
 });
 
-el.loadConfigBtn.addEventListener("click", () => {
-  post({ type: "requestConfigLoad" });
-});
-
-function applyLoadedConfig(raw: unknown, source?: string): void {
-  deserializeConfig((raw ?? {}) as Record<string, unknown>, configView);
-  el.legendToggle.checked = currentSettings().showLegend !== false;
-  renderDatasetList();
-  renderPlot();
-  if (source) setStatus("Config loaded from " + source + ".");
-}
-
 /* =========================================================================
    RENDERING
    ========================================================================= */
@@ -452,14 +426,9 @@ function loadFiles(
   state.namingRules = namingRules;
   defaultView = defView;
 
-  el.folderHint.textContent = state.files.length
-    ? `${state.files.length} file(s) loaded.`
-    : "No files loaded.";
-
   if (config) deserializeConfig(config as Record<string, unknown>, configView);
 
   setInspectorOpen(!!uiState.panelOpen);
-  renderFileList();
 
   if (!state.files.length) {
     renderPlot();
@@ -497,9 +466,6 @@ window.addEventListener("message", (event: MessageEvent<HostToWebview>) => {
         msg.config,
       );
       break;
-    case "loadConfig":
-      applyLoadedConfig(msg.raw, msg.source);
-      break;
     case "setViewMode":
       state.viewMode = msg.mode;
       syncViewButtons();
@@ -508,6 +474,10 @@ window.addEventListener("message", (event: MessageEvent<HostToWebview>) => {
       break;
     case "requestSaveConfig":
       post({ type: "saveConfig", raw: serializeConfig(configView) });
+      break;
+    case "setNamingRules":
+      state.namingRules = msg.namingRules;
+      renderPlot();
       break;
   }
 });
@@ -519,6 +489,5 @@ new MutationObserver(() => {
 }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
 /* Initial state */
-renderFileList();
 setStatus("No file selected.");
 post({ type: "ready" });

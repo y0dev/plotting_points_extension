@@ -1,0 +1,20 @@
+// Copy the "xyPlot.namingRules" key below into .vscode/settings.json (this
+// workspace only) or your User settings.json (every workspace) — Command
+// Palette -> "Preferences: Open Workspace Settings (JSON)" / "...User
+// Settings (JSON)".
+//
+// "*" is the only wildcard, and it's checked against the file name with its
+// extension stripped. "match_scan_*" matches match_scan_001, match_scan_002,
+// match_scan_anything — every file with that prefix, not one exact name.
+// Rules are checked in order; a later matching rule overrides only the
+// fields it sets, so a broad rule can set a default and a narrower one can
+// override just one field. A label you set by hand in the panel (Set Title /
+// Set X Label / Set Y Label, saved to xy_plot_config.json) always wins over
+// a naming rule.
+{
+  "xyPlot.namingRules": [
+    { "match": "match_scan_*", "xlabel": "Scan Position", "ylabel": "Signal Amplitude" },
+    { "match": "calibration_*", "xlabel": "Calibration Step" },
+    { "match": "*_noise", "ylabel": "Noise (mV)" }
+  ]
+}

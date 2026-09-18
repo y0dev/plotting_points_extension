@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.3.0 — 2026-09-18
+
+- `xyPlot.namingRules` edits now apply live: a viewer already open picks up
+  an edited rule immediately (checked to the file's exact prefix, e.g.
+  `match_scan_*` covering every `match_scan_NNN` file, not just one) without
+  closing and reopening the file. Only `namingRules` changes trigger this —
+  everything else keeps applying at the next open, as before.
+- README restructured: "Config save / load" and "Settings" merged into one
+  "Configuration" section with numbered, step-by-step instructions for both
+  Save/Load Config and `xyPlot.namingRules`, and an explicit note that
+  `xy_plot_config.json` overrides are per-exact-file while `namingRules` is
+  the glob-based mechanism for "every file with this prefix."
+- New example files: `examples/match_scan_002.xy` (a second file matching the
+  `match_scan_*` naming rule, alongside the existing `match_scan_001.xy`) and
+  `examples/settings.namingRules.jsonc` (a copy-pasteable `.vscode/settings.json`
+  snippet).
+- Hover tooltips show a dataset's full name: `layout.hoverlabel.namelength` is
+  now `-1`, overriding Plotly's default 15-character truncation.
+- New **Data Files** Activity Bar view (`src/views/dataFilesProvider.ts`):
+  lists every `.xy` / `.y` file in the workspace, refreshing on its own when
+  one is added or removed; clicking an item opens it via `xyPlot.open`. This
+  replaces the file list that used to live inside the webview's inspector
+  drawer — that list is now scoped to the currently open file's bins,
+  legend, dataset colors/labels, and config actions only, not file browsing.
+- Removed the modebar's "Download plot as a png" button — it relies on
+  triggering a browser file download, which a VS Code webview can't do, so it
+  was a button that looked clickable but silently did nothing.
+- Zooming: mouse-wheel zoom (`scrollZoom: true`) added, alongside the
+  existing click-drag box zoom and the modebar's zoom / pan / box-select /
+  lasso-select tools, unchanged.
+- Removed the **Load Config** button and the `xyPlot.loadConfig` command —
+  loading is `xyPlot.autoLoadConfig`-only now (Save Config is unaffected).
+  The `loadConfig` / `requestConfigLoad` protocol messages and their handling
+  in `xyPlotEditorProvider.ts` / `main.ts` were removed with it.
+
 ## 0.2.0 — 2026-09-18
 
 - Panel chrome redesigned as a native VS Code panel instead of a copy of the
