@@ -73,7 +73,8 @@ ignored if its name *contains* any of the terms, so `"archive"` hides
 ```
 
 Set it in User or Workspace settings, same as `xyPlot.namingRules`; it takes
-effect immediately.
+effect immediately. A copy-pasteable snippet is at
+[`examples/settings.ignoreFolders.jsonc`](examples/settings.ignoreFolders.jsonc).
 
 ### Build from source
 
@@ -155,11 +156,15 @@ dataset name (`Baseline_Control_Sensor_04`, say) never gets cut down to
 `Baseline_Contro…` in the tooltip.
 
 **Zooming**: scroll the mouse wheel over the plot to zoom in/out (`scrollZoom:
-true`), in addition to the modebar's zoom / pan / box-select / lasso-select
-tools and click-drag box zoom, which work the same as any Plotly chart.
-Double-click resets the view. The modebar's camera ("Download plot as a png")
-button is removed — it relies on triggering a browser file download, which
-doesn't work inside a VS Code webview, so it did nothing.
+true`), in addition to the modebar's zoom / pan tools and click-drag box
+zoom, which work the same as any Plotly chart. Double-click resets the view.
+
+Two modebar buttons are removed rather than left looking clickable with no
+payoff: the camera ("Download plot as a png") button relies on triggering a
+browser file download, which doesn't work inside a VS Code webview; and Box
+Select / Lasso Select mark points as "selected" and fire a Plotly event for
+a page's own code to act on — nothing here listens for it, so dragging one
+just dimmed the unselected points and did nothing further.
 
 ### The inspector
 

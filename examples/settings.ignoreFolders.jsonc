@@ -1,0 +1,15 @@
+// Copy the "xyPlot.ignoreFolders" key below into .vscode/settings.json (this
+// workspace only) or your User settings.json (every workspace) — Command
+// Palette -> "Preferences: Open Workspace Settings (JSON)" / "...User
+// Settings (JSON)".
+//
+// Plain strings, no glob syntax. A directory is hidden from the Data Files
+// view if its name *contains* one of these terms, case-insensitively —
+// "archive" hides archive/, old_archive/, and Archived_2024/ alike, at any
+// depth. Checked against every directory segment of a file's path, never
+// the file name itself, so "archive_run.xy" in a folder named "current" is
+// not hidden. node_modules and .git are always hidden regardless of this
+// setting. Applies immediately, no reload needed.
+{
+  "xyPlot.ignoreFolders": ["archive", "scratch", "_old"]
+}

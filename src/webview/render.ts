@@ -58,14 +58,22 @@ export function plotlyConfig(): Record<string, unknown> {
   return {
     responsive: true,
     displaylogo: false,
-    // "Download plot as a png" doesn't work inside a VS Code webview — it
-    // relies on triggering a browser file download, which the webview sandbox
-    // doesn't support — so drop that modebar button entirely rather than
-    // leave one that looks clickable but silently does nothing.
-    modeBarButtonsToRemove: ["toImage"],
-    // Mouse-wheel zoom, on top of the modebar's zoom / pan / box-select /
-    // lasso-select tools and click-drag box zoom, both left at their Plotly
-    // defaults — this only adds an easier way in, it doesn't replace them.
+    modeBarButtonsToRemove: [
+      // "Download plot as a png" doesn't work inside a VS Code webview — it
+      // relies on triggering a browser file download, which the webview
+      // sandbox doesn't support.
+      "toImage",
+      // Box/lasso select mark points as "selected" and fire a
+      // plotly_selected event for a page's own JS to act on — nothing here
+      // listens for it, so dragging one just dims the unselected points
+      // with no further effect. Removed rather than left looking clickable
+      // for no payoff.
+      "select2d",
+      "lasso2d",
+    ],
+    // Mouse-wheel zoom, on top of the modebar's zoom/pan tools and
+    // click-drag box zoom, both left at their Plotly defaults — this only
+    // adds an easier way in, it doesn't replace them.
     scrollZoom: true,
   };
 }

@@ -2,7 +2,7 @@
   "name": "xy-plot-viewer",
   "displayName": "XY Plot Viewer",
   "description": "Open .xy / .y data files (or a whole folder) in a webview and plot them with Plotly — line plots and overlaid histograms. Runs fully offline.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "devdoesit",
   "license": "MIT",
   "icon": "images/icon.png",

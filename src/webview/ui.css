@@ -12,6 +12,10 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
+  overflow-x: hidden; /* belt-and-suspenders: this panel never scrolls
+    sideways — the real fix for the inspector drawer's scrollbar is
+    #app's position: relative below, but nothing here should ever need
+    horizontal scroll, so keep it off outright. */
   font-family: var(--vscode-font-family);
   font-size: var(--vscode-font-size, 13px);
   background: var(--vscode-editor-background);
@@ -19,6 +23,10 @@ html, body {
 }
 
 #app {
+  position: relative; /* makes #app the containing block for #inspector
+    (position: absolute) so its own overflow: hidden actually clips the
+    drawer while closed/sliding, instead of #inspector escaping to the
+    page's root and growing the document width (a horizontal scrollbar). */
   display: flex;
   flex-direction: column;
   height: 100vh;

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.2 — 2026-09-18
+
+- Fixed: opening the inspector drawer could trigger a horizontal scrollbar
+  across the whole panel. `#app` had `overflow: hidden` but no `position`,
+  so it wasn't the containing block for `#inspector` (`position: absolute`)
+  — the drawer's closed-state `translateX(100%)` escaped to the page's
+  root instead of being clipped by `#app`, growing the document width.
+  Added `position: relative` to `#app`, plus `overflow-x: hidden` on
+  `html, body` as a backstop.
+- Removed the modebar's Box Select and Lasso Select buttons: they mark
+  points as "selected" and fire a Plotly event for a page's own code to
+  act on, but nothing here listens for it, so dragging one only dimmed the
+  unselected points with no further effect. Same treatment as the earlier
+  download-plot button removal.
+- New `examples/settings.ignoreFolders.jsonc` — a copy-pasteable
+  `.vscode/settings.json` snippet for `xyPlot.ignoreFolders`, matching the
+  existing `settings.namingRules.jsonc`.
+
 ## 0.4.1 — 2026-09-18
 
 - Data Files: folder nodes are collapsed by default (click the caret, or
