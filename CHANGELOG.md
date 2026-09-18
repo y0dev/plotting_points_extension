@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1 — 2026-09-18
+
+- Fixed: the "Open a .xy or .y file…" empty-state hint stayed visible over
+  the plot even after a file loaded. `#empty-hint`'s own `display: flex`
+  rule is an ID selector, which — regardless of source order — beats the
+  browser's built-in `[hidden] { display: none }` rule on specificity, so
+  toggling `el.hidden` in `main.ts` had no visual effect; the hint (an
+  absolutely-positioned overlay, a later sibling of `#plot-div`) stayed
+  painted on top of every plot. Added an explicit `#empty-hint[hidden] {
+  display: none }` rule in `ui.css` so the attribute toggle actually applies.
+
 ## 0.3.0 — 2026-09-18
 
 - `xyPlot.namingRules` edits now apply live: a viewer already open picks up
