@@ -78,7 +78,7 @@ export class DataFilesProvider implements vscode.TreeDataProvider<DataFileNode>,
 
   getTreeItem(node: DataFileNode): vscode.TreeItem {
     if (node.kind === "folder") {
-      const item = new vscode.TreeItem(node.relPath, vscode.TreeItemCollapsibleState.Expanded);
+      const item = new vscode.TreeItem(node.relPath, vscode.TreeItemCollapsibleState.Collapsed);
       item.id = `folder:${node.relPath}`;
       item.iconPath = vscode.ThemeIcon.Folder;
       item.contextValue = "xyPlotFolder";

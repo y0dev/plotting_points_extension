@@ -40,9 +40,11 @@ bar, the same as any other file type.
 
 - **Grouped by folder**, not one flat alphabetical list: a file sitting
   directly at a workspace root is a plain leaf, and anything inside a
-  subfolder is grouped under a node labeled by that subfolder's relative
-  path (`data/run1`, `data/run2`, …). Two files sharing a name in different
-  folders (`data/run1/scan.xy` vs. `data/run2/scan.xy`) each read
+  subfolder is grouped under a **collapsed** node (click the caret, or the
+  row, to expand it) labeled by that subfolder's relative path
+  (`data/run1`, `data/run2`, …) — so opening the view doesn't dump every
+  file from every folder on screen at once. Two files sharing a name in
+  different folders (`data/run1/scan.xy` vs. `data/run2/scan.xy`) each read
   unambiguously under their own folder instead of as two identical rows in
   one flat list. Folders sort before root-level files; both alphabetically.
 - `xyPlot.ignoreFolders` hides files under a directory whose **name

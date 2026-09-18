@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 — 2026-09-18
+
+- Data Files: folder nodes are collapsed by default (click the caret, or
+  the row, to expand) instead of expanded — opening the view no longer
+  dumps every file from every folder on screen at once.
+
 ## 0.4.0 — 2026-09-18
 
 - **Data Files** view now groups files by folder instead of one flat list:
