@@ -1,6 +1,10 @@
-/* XY Plot Viewer webview chrome. Layout is ported from the source browser app
-   (xy_plot_viewer.html); every color is driven by VS Code theme variables so it
-   works in light, dark and high-contrast themes. */
+/* XY Plot Viewer webview chrome — a purpose-built native VS Code panel, not a
+   port of the source browser app's page layout. One thin toolbar, the plot
+   filling the rest of the space, and a slide-out inspector drawer for
+   everything else. Flat, hairline borders (no card shadows) except the
+   drawer itself, which is an overlay and gets a subtle elevation shadow like
+   VS Code's own hover / quick-pick widgets. Every color is a VS Code theme
+   variable, so it works in light, dark and high-contrast themes. */
 
 * { box-sizing: border-box; }
 
@@ -13,52 +17,171 @@ html, body {
   background: var(--vscode-editor-background);
   color: var(--vscode-foreground);
 }
-body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-header {
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ---- toolbar ------------------------------------------------------------ */
+
+#toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
+  gap: 4px;
+  padding: 0 8px;
+  height: 38px;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
 }
-header .icon { width: 28px; height: 28px; flex-shrink: 0; }
-header .icon svg { width: 28px; height: 28px; }
-header h1 { font-size: 15px; margin: 0; font-weight: 600; }
-header p { font-size: 11px; margin: 2px 0 0; color: var(--vscode-descriptionForeground); }
-header .menu { margin-left: auto; display: flex; gap: 8px; }
 
-main {
-  flex: 1;
+.brand {
   display: flex;
-  gap: 12px;
-  padding: 12px;
+  align-items: center;
+  color: var(--vscode-textLink-foreground, var(--vscode-focusBorder));
+  opacity: 0.9;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+#view-switch {
+  display: flex;
+  gap: 2px;
+  background: var(--vscode-editorWidget-background, rgba(128, 128, 128, 0.08));
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.view-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 9px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-foreground);
+  opacity: 0.75;
+  cursor: pointer;
+}
+.view-btn:hover { opacity: 1; background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15)); }
+.view-btn.active {
+  opacity: 1;
+  background: var(--vscode-button-secondaryBackground, var(--vscode-list-activeSelectionBackground));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-list-activeSelectionForeground));
+}
+
+.toolbar-spacer { flex: 1; }
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.icon-btn:hover { background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15)); }
+.icon-btn.active {
+  background: var(--vscode-toolbar-activeBackground, var(--vscode-list-activeSelectionBackground));
+  color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
+}
+
+.icon-btn:focus-visible,
+.view-btn:focus-visible,
+.btn:focus-visible,
+input:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+/* ---- stage (plot) -------------------------------------------------------- */
+
+#stage {
+  position: relative;
+  flex: 1;
   min-height: 0;
 }
 
-.panel {
-  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
-  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
-  border-radius: 6px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+#plot-div {
+  position: absolute;
+  inset: 0;
 }
-.panel > h2 {
+
+#empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 32px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12.5px;
+  pointer-events: none;
+}
+
+/* ---- status bar ----------------------------------------------------------- */
+
+#status-bar {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  font-size: 11.5px;
+  color: var(--vscode-descriptionForeground);
+  border-top: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- inspector drawer ------------------------------------------------------ */
+
+#inspector {
+  position: absolute;
+  top: 39px;
+  right: 0;
+  bottom: 23px;
+  width: min(320px, 88vw);
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  border-left: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+  box-shadow: -10px 0 18px -10px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.4));
+  transform: translateX(100%);
+  transition: transform 0.16s ease;
+  z-index: 5;
+}
+#inspector.open { transform: translateX(0); }
+
+.inspector-scroll {
+  height: 100%;
+  overflow-y: auto;
+  padding: 4px 14px 14px;
+}
+
+.inspector-section {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+}
+.inspector-section:last-child { border-bottom: none; }
+
+.inspector-section h2 {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--vscode-descriptionForeground);
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   font-weight: 700;
 }
 
-#files-panel { width: 260px; flex-shrink: 0; }
-#labels-panel { width: 300px; flex-shrink: 0; overflow-y: auto; display: none; }
-#labels-panel.visible { display: flex; }
-#plot-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* ---- shared controls -------------------------------------------------- */
 
 .btn {
   font-family: inherit;
@@ -73,52 +196,31 @@ main {
 .btn:hover {
   background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
 }
-.btn-accent {
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-  border-color: var(--vscode-button-border, transparent);
-  font-weight: 600;
-}
-.btn-accent:hover { background: var(--vscode-button-hoverBackground); }
-.btn:focus-visible,
-input:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
-.btn-row { display: flex; gap: 6px; }
+.btn-block { width: 100%; margin-top: 6px; }
+.btn-row { display: flex; gap: 6px; margin: 8px 0; }
 .btn-row .btn { flex: 1; }
 
-#folder-hint { font-size: 11px; color: var(--vscode-descriptionForeground); margin: 8px 0 10px; }
+.hint { font-size: 11px; color: var(--vscode-descriptionForeground); line-height: 1.4; }
+.hint code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 10.5px;
+  background: rgba(128, 128, 128, 0.16);
+  border-radius: 3px;
+  padding: 0 3px;
+}
 
-#file-list {
-  flex: 1;
-  overflow-y: auto;
-  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
-  border-radius: 4px;
-  min-height: 80px;
-}
-#file-list .file-item {
-  padding: 6px 10px;
-  font-size: 12.5px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
-}
-#file-list .file-item:hover { background: var(--vscode-list-hoverBackground); }
-#file-list .file-item.selected {
-  background: var(--vscode-list-activeSelectionBackground);
-  color: var(--vscode-list-activeSelectionForeground);
-}
-#file-list .empty { padding: 14px 10px; color: var(--vscode-descriptionForeground); font-size: 12px; }
-
-fieldset { border: none; margin: 12px 0 0; padding: 0; }
-legend {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--vscode-descriptionForeground);
-  margin-bottom: 6px;
-  padding: 0;
-}
-.radio-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; margin: 3px 0; }
-
-.field-row { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+.field-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 .field-row label { font-size: 12.5px; color: var(--vscode-descriptionForeground); white-space: nowrap; }
+.field-row input { width: 70px; }
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  margin: 8px 0 0;
+  cursor: pointer;
+}
 
 input[type="number"], input[type="text"] {
   font-family: inherit;
@@ -131,29 +233,54 @@ input[type="number"], input[type="text"] {
   width: 100%;
 }
 input::placeholder { color: var(--vscode-input-placeholderForeground); }
-#bins-input { width: 64px; }
 
-.section-heading {
-  font-size: 12px;
-  font-weight: 700;
+.field-label {
+  display: block;
+  font-size: 11px;
   color: var(--vscode-descriptionForeground);
-  margin: 14px 0 4px;
+  margin: 12px 0 4px;
 }
-.hint { font-size: 11px; color: var(--vscode-descriptionForeground); line-height: 1.4; }
+.field-stack .field-label:first-child { margin-top: 14px; }
 
-#dataset-filter { margin: 8px 0; }
-#dataset-list {
-  flex: 0 0 240px;
+/* ---- data files list ---------------------------------------------------- */
+
+#folder-hint { margin: 4px 0 8px; }
+
+#file-list {
+  max-height: 160px;
   overflow-y: auto;
-  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
   border-radius: 4px;
-  padding: 4px;
+}
+#file-list .file-item {
+  padding: 6px 9px;
+  font-size: 12.5px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.18));
+}
+#file-list .file-item:last-child { border-bottom: none; }
+#file-list .file-item:hover { background: var(--vscode-list-hoverBackground); }
+#file-list .file-item.selected {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+#file-list .empty { padding: 12px 9px; color: var(--vscode-descriptionForeground); font-size: 12px; }
+
+/* ---- dataset list --------------------------------------------------------- */
+
+#dataset-filter { margin: 4px 0 8px; }
+#dataset-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
+  border-radius: 4px;
+  padding: 3px;
 }
 .dataset-row { display: flex; align-items: center; gap: 6px; padding: 3px 4px; font-size: 12px; }
 .dataset-row .swatch {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
   border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.5));
   background: none;
   cursor: pointer;
@@ -167,16 +294,7 @@ input::placeholder { color: var(--vscode-input-placeholderForeground); }
   white-space: nowrap;
 }
 
-#plot-div { flex: 1; min-height: 0; border-radius: 4px; }
-
-footer {
-  background: var(--vscode-statusBar-background, var(--vscode-editorWidget-background));
-  color: var(--vscode-statusBar-foreground, var(--vscode-descriptionForeground));
-  font-size: 11.5px;
-  padding: 5px 14px;
-  flex-shrink: 0;
-  border-top: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
-}
+/* ---- scrollbars ----------------------------------------------------------- */
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb {

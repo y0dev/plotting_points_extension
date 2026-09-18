@@ -1,10 +1,15 @@
 /**
- * Webview entry point: the panel UI and Plotly wiring, ported from the source
- * browser app (xy_plot_viewer.html). The application `state` object, the
- * `renderPlot` control flow and every event handler mirror the source; the file
- * `<input>` is replaced by messages from the extension host, and Save / Load
- * Config round-trip through the host so they touch the workspace, not a
- * download.
+ * Webview entry point: the panel UI and Plotly wiring. The application `state`
+ * object and the `renderPlot` control flow are ported from the source browser
+ * app (xy_plot_viewer.html); the file `<input>` is replaced by messages from
+ * the extension host, and Save / Load Config round-trip through the host so
+ * they touch the workspace, not a download.
+ *
+ * The chrome itself is not a port of the source app's layout: there is one
+ * toolbar (view switch + inspector toggle), the plot fills the rest of the
+ * space, and the file list / bins & legend / dataset labels / config actions
+ * all live in a single slide-out inspector drawer instead of always-visible
+ * side panels.
  */
 import type {
   HostToWebview,
@@ -21,7 +26,7 @@ import {
 } from "../core/colorConfig";
 import {
   makeTitleSettings,
-  getDisplayTitle,
+  resolveDisplayTitle,
   getFieldOr,
   setOverrideField,
 } from "../core/titleSettings";
@@ -37,6 +42,7 @@ import {
   deserializeConfig,
   type PlotState,
 } from "../core/config";
+import { resolveNamingLabels, type NamingRule } from "../core/namingRules";
 import {
   renderLine,
   renderHistogram,
@@ -72,6 +78,7 @@ const state = {
   plotSettings: makeTitleSettings({ xlabel: "Run", ylabel: "Value", showLegend: true }),
   histSettings: makeTitleSettings({ bins: 20, xlabel: "Value", ylabel: "Count", showLegend: true }),
   visibility: makeVisibility(),
+  namingRules: [] as NamingRule[],
 };
 
 /** `state` typed as the slice the config module reads / writes. */
@@ -79,7 +86,7 @@ const configView = state as unknown as PlotState;
 
 /** How new file selections pick their view; `auto` = per-extension rule. */
 let defaultView: ViewMode | "auto" = "auto";
-let panelOpen = false;
+let inspectorOpen = false;
 
 function currentFile(): LoadedFile | null {
   return state.currentIndex >= 0 ? state.files[state.currentIndex] : null;
@@ -102,11 +109,12 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
 const el = {
   fileList: $("file-list"),
   folderHint: $("folder-hint"),
-  viewRadios: document.getElementsByName("view-mode") as NodeListOf<HTMLInputElement>,
+  viewLineBtn: $<HTMLButtonElement>("view-line-btn"),
+  viewHistBtn: $<HTMLButtonElement>("view-hist-btn"),
   binsInput: $<HTMLInputElement>("bins-input"),
   legendToggle: $<HTMLInputElement>("legend-toggle"),
-  showLabelsBtn: $<HTMLButtonElement>("show-labels-btn"),
-  labelsPanel: $("labels-panel"),
+  inspectorToggleBtn: $<HTMLButtonElement>("inspector-toggle-btn"),
+  inspector: $("inspector"),
   datasetFilter: $<HTMLInputElement>("dataset-filter"),
   datasetList: $("dataset-list"),
   showAllBtn: $<HTMLButtonElement>("show-all-btn"),
@@ -119,6 +127,7 @@ const el = {
   ylabelInput: $<HTMLInputElement>("ylabel-input"),
   setYlabelBtn: $<HTMLButtonElement>("set-ylabel-btn"),
   plotDiv: $("plot-div"),
+  emptyHint: $("empty-hint"),
   statusBar: $("status-bar"),
   saveConfigBtn: $<HTMLButtonElement>("save-config-btn"),
   loadConfigBtn: $<HTMLButtonElement>("load-config-btn"),
@@ -152,24 +161,33 @@ function selectFile(index: number, keepViewMode = false): void {
   state.currentIndex = index;
   const file = state.files[index];
   if (!keepViewMode) state.viewMode = viewForFile(file);
-  for (const r of el.viewRadios) r.checked = r.value === state.viewMode;
+  syncViewButtons();
   renderFileList();
   renderPlot();
   persistUiState();
 }
 
 /* =========================================================================
-   VIEW MODE / BINS / LEGEND CONTROLS  (ported)
+   VIEW MODE / BINS / LEGEND CONTROLS
    ========================================================================= */
 
-for (const radio of Array.from(el.viewRadios)) {
-  radio.addEventListener("change", () => {
-    if (!radio.checked) return;
-    state.viewMode = radio.value as ViewMode;
-    renderPlot();
-    persistUiState();
-  });
+function syncViewButtons(): void {
+  el.viewLineBtn.classList.toggle("active", state.viewMode === "line");
+  el.viewLineBtn.setAttribute("aria-pressed", String(state.viewMode === "line"));
+  el.viewHistBtn.classList.toggle("active", state.viewMode === "histogram");
+  el.viewHistBtn.setAttribute("aria-pressed", String(state.viewMode === "histogram"));
 }
+
+function setViewMode(mode: ViewMode): void {
+  if (state.viewMode === mode) return;
+  state.viewMode = mode;
+  syncViewButtons();
+  renderPlot();
+  persistUiState();
+}
+
+el.viewLineBtn.addEventListener("click", () => setViewMode("line"));
+el.viewHistBtn.addEventListener("click", () => setViewMode("histogram"));
 
 el.binsInput.addEventListener("change", () => {
   const bins = parseInt(el.binsInput.value, 10);
@@ -184,14 +202,19 @@ el.legendToggle.addEventListener("change", () => {
 });
 
 /* =========================================================================
-   DATASETS & LABELS PANEL  (ported)
+   INSPECTOR DRAWER (files, bins & legend, datasets & labels, config)
    ========================================================================= */
 
-el.showLabelsBtn.addEventListener("click", () => {
-  panelOpen = el.labelsPanel.classList.toggle("visible");
-  el.showLabelsBtn.textContent = panelOpen
-    ? "Datasets & Labels ▴"
-    : "Datasets & Labels ▾";
+function setInspectorOpen(open: boolean): void {
+  inspectorOpen = open;
+  el.inspector.classList.toggle("open", open);
+  el.inspector.setAttribute("aria-hidden", String(!open));
+  el.inspectorToggleBtn.classList.toggle("active", open);
+  el.inspectorToggleBtn.setAttribute("aria-expanded", String(open));
+}
+
+el.inspectorToggleBtn.addEventListener("click", () => {
+  setInspectorOpen(!inspectorOpen);
   persistUiState();
 });
 
@@ -260,9 +283,7 @@ el.resetColorsBtn.addEventListener("click", () => {
   renderPlot();
 });
 
-/* =========================================================================
-   TITLE / X / Y LABEL FIELDS  (ported)
-   ========================================================================= */
+/* ---- title / x / y label fields ---------------------------------------- */
 
 el.setTitleBtn.addEventListener("click", () => {
   const file = currentFile();
@@ -295,9 +316,7 @@ el.setYlabelBtn.addEventListener("click", () => {
   renderPlot();
 });
 
-/* =========================================================================
-   CONFIG SAVE / LOAD  (through the extension host)
-   ========================================================================= */
+/* ---- config save / load (through the extension host) ------------------- */
 
 el.saveConfigBtn.addEventListener("click", () => {
   post({ type: "saveConfig", raw: serializeConfig(configView) });
@@ -316,7 +335,7 @@ function applyLoadedConfig(raw: unknown, source?: string): void {
 }
 
 /* =========================================================================
-   RENDERING  (ported)
+   RENDERING
    ========================================================================= */
 
 function setStatus(text: string): void {
@@ -332,6 +351,7 @@ function visibleIndexed(file: LoadedFile): IndexedDataset[] {
 
 function renderPlot(): void {
   const file = currentFile();
+  el.emptyHint.hidden = !!file;
   if (!file) {
     purge(el.plotDiv);
     setStatus("No file selected.");
@@ -343,12 +363,29 @@ function renderPlot(): void {
   el.legendToggle.checked = settings.showLegend !== false;
 
   const originalTitle = originalTitleFor(file);
-  const displayTitle = getDisplayTitle(settings, originalTitle);
+  // Naming-rule-derived defaults only apply in line mode, where labels are
+  // already per-title; histogram's label is a single field shared by every
+  // loaded file, so a per-file naming rule has nothing sensible to attach to.
+  const naming =
+    state.viewMode === "line"
+      ? resolveNamingLabels(state.namingRules, originalTitle)
+      : {};
+  const displayTitle = resolveDisplayTitle(settings, originalTitle, naming.title);
 
   el.titleInput.value = displayTitle;
   if (state.viewMode === "line") {
-    el.xlabelInput.value = getFieldOr(settings, originalTitle, "xlabel", settings.xlabel) as string;
-    el.ylabelInput.value = getFieldOr(settings, originalTitle, "ylabel", settings.ylabel) as string;
+    el.xlabelInput.value = getFieldOr(
+      settings,
+      originalTitle,
+      "xlabel",
+      naming.xlabel ?? settings.xlabel,
+    ) as string;
+    el.ylabelInput.value = getFieldOr(
+      settings,
+      originalTitle,
+      "ylabel",
+      naming.ylabel ?? settings.ylabel,
+    ) as string;
   } else {
     el.xlabelInput.value = settings.xlabel ?? "";
     el.ylabelInput.value = settings.ylabel ?? "";
@@ -392,7 +429,7 @@ function persistUiState(): void {
   const file = currentFile();
   const uiState: UiState = {
     viewMode: state.viewMode,
-    panelOpen,
+    panelOpen: inspectorOpen,
     selectedFile: file ? file.name : undefined,
   };
   post({ type: "persistUiState", uiState });
@@ -404,6 +441,7 @@ function loadFiles(
   settingsPalette: string[],
   defView: ViewMode | "auto",
   defBins: number,
+  namingRules: NamingRule[],
   uiState: UiState,
   config: unknown,
 ): void {
@@ -411,6 +449,7 @@ function loadFiles(
   state.currentIndex = -1;
   state.colors = makeColorConfig(settingsPalette);
   state.histSettings.bins = defBins || 20;
+  state.namingRules = namingRules;
   defaultView = defView;
 
   el.folderHint.textContent = state.files.length
@@ -419,13 +458,7 @@ function loadFiles(
 
   if (config) deserializeConfig(config as Record<string, unknown>, configView);
 
-  // Restore panel state.
-  panelOpen = !!uiState.panelOpen;
-  el.labelsPanel.classList.toggle("visible", panelOpen);
-  el.showLabelsBtn.textContent = panelOpen
-    ? "Datasets & Labels ▴"
-    : "Datasets & Labels ▾";
-
+  setInspectorOpen(!!uiState.panelOpen);
   renderFileList();
 
   if (!state.files.length) {
@@ -459,6 +492,7 @@ window.addEventListener("message", (event: MessageEvent<HostToWebview>) => {
         msg.settings.palette,
         msg.settings.defaultView,
         msg.settings.defaultBins,
+        msg.settings.namingRules,
         msg.uiState,
         msg.config,
       );
@@ -468,7 +502,7 @@ window.addEventListener("message", (event: MessageEvent<HostToWebview>) => {
       break;
     case "setViewMode":
       state.viewMode = msg.mode;
-      for (const r of el.viewRadios) r.checked = r.value === state.viewMode;
+      syncViewButtons();
       renderPlot();
       persistUiState();
       break;

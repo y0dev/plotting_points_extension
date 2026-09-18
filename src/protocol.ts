@@ -2,6 +2,7 @@
  * Typed message protocol between the extension host and the webview. Both ends
  * import this module; it must stay free of `vscode` and DOM references.
  */
+import type { NamingRule } from "./core/namingRules";
 
 export type ViewMode = "line" | "histogram";
 export type DefaultView = "auto" | ViewMode;
@@ -18,6 +19,8 @@ export interface HostSettings {
   defaultView: DefaultView;
   palette: string[];
   autoLoadConfig: boolean;
+  /** `xyPlot.namingRules`, merged across the User and Workspace setting scopes. */
+  namingRules: NamingRule[];
 }
 
 /** Per-resource UI state, persisted in `workspaceState` keyed by the URI. */

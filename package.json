@@ -2,7 +2,7 @@
   "name": "xy-plot-viewer",
   "displayName": "XY Plot Viewer",
   "description": "Open .xy / .y data files (or a whole folder) in a webview and plot them with Plotly — line plots and overlaid histograms. Runs fully offline.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "devdoesit",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -56,6 +56,7 @@
         "displayName": "XY Plot Viewer",
         "selector": [
           { "filenamePattern": "*.xy" },
+          { "filenamePattern": "*.XY" },
           { "filenamePattern": "*.y" },
           { "filenamePattern": "*.Y" }
         ],
@@ -133,6 +134,30 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically load an xy_plot_config.json sitting next to the data files when the viewer opens."
+        },
+        "xyPlot.importFolder": {
+          "type": "string",
+          "default": "data",
+          "markdownDescription": "Folder (relative to the workspace root) that `XY Plot: Open Folder in XY Plot Viewer` copies `.xy` / `.y` files into when the folder you pick is outside the workspace. Created automatically. Files already there are left as-is, never overwritten; files inside the workspace are opened in place and never copied."
+        },
+        "xyPlot.namingRules": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "match": {
+                "type": "string",
+                "description": "Glob pattern (only * is supported) matched case-insensitively against the file name with its extension stripped, e.g. \"match_scan_*\" or \"*_noise\"."
+              },
+              "xlabel": { "type": "string", "description": "X-axis label to apply when this rule matches (line view)." },
+              "ylabel": { "type": "string", "description": "Y-axis label to apply when this rule matches (line view)." },
+              "title": { "type": "string", "description": "Plot title to apply when this rule matches." }
+            },
+            "required": ["match"],
+            "additionalProperties": false
+          },
+          "markdownDescription": "Auto-fill a file's X/Y axis labels and title by file name, so you don't have to set them by hand for every file. Rules are checked in order against the file name minus its extension; later matching rules override earlier ones field-by-field. A rule set with **Set Title / Set X Label / Set Y Label** in the panel always wins over a naming rule.\n\nSet this in **User settings** for a rule that applies everywhere, or in this workspace's `.vscode/settings.json` for project-specific rules — both apply, with workspace rules taking precedence on conflict."
         }
       }
     }

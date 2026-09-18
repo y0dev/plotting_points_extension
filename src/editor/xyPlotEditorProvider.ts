@@ -171,7 +171,25 @@ function readHostSettings(): HostSettings {
     defaultView: cfg.get<HostSettings["defaultView"]>("defaultView", "auto"),
     palette: palette && palette.length ? palette : [...DEFAULT_PALETTE],
     autoLoadConfig: cfg.get<boolean>("autoLoadConfig", false),
+    namingRules: readNamingRules(cfg),
   };
+}
+
+/**
+ * `xyPlot.namingRules` merged across scopes: User settings (global) and
+ * Workspace / workspace-folder settings (local) are concatenated — rather than
+ * the Workspace value replacing the User value, VS Code's normal behavior for
+ * a single setting — so a project's `.vscode/settings.json` rules add to, and
+ * take precedence over (being later in the list), a user's global rules.
+ */
+function readNamingRules(cfg: vscode.WorkspaceConfiguration): HostSettings["namingRules"] {
+  const inspected = cfg.inspect<HostSettings["namingRules"]>("namingRules");
+  const scopes = [
+    inspected?.globalValue,
+    inspected?.workspaceValue,
+    inspected?.workspaceFolderValue,
+  ];
+  return scopes.filter((v): v is HostSettings["namingRules"] => Array.isArray(v)).flat();
 }
 
 /**

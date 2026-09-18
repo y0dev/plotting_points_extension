@@ -3,13 +3,16 @@
 Open `.xy` / `.y` data files — or a whole folder of them — in a VS Code webview
 and plot them with [Plotly.js](https://plotly.com/javascript/): **line plots**
 and **overlaid histograms**, with per-dataset color and visibility controls,
-editable titles / axis labels, and a save/load-able config.
+editable titles / axis labels, file-name-driven label defaults, and a
+save/load-able config.
 
-It is a port of a single-file browser app. The parsing and plotting logic is
-carried over unchanged; only the presentation layer is new — a custom editor,
-VS Code theme integration, workspace config, commands, and a **fully offline**
-Plotly bundle (no CDN). The source app's 3D-histogram view is dropped — it
-required Plotly's `scatter3d` trace, which more than doubled the bundle size.
+The parsing and plotting math is a port of a single-file browser app; the
+panel itself is not — it's a purpose-built VS Code panel (a thin toolbar +
+slide-out inspector, see below), not the source app's page layout. VS Code
+theme integration, workspace config, commands, and a **fully offline** Plotly
+bundle (no CDN) round it out. The source app's 3D-histogram view is dropped —
+it required Plotly's `scatter3d` trace, which more than doubled the bundle
+size.
 
 ![XY Plot Viewer, light theme](https://raw.githubusercontent.com/y0dev/plotting_points_extension/main/images/screenshot-light.png)
 
@@ -20,7 +23,7 @@ required Plotly's `scatter3d` trace, which more than doubled the bundle size.
 | From | Do this |
 | --- | --- |
 | A single file | Right-click a `.xy` / `.y` file → **Open in XY Plot Viewer**, or *File ▸ Open With… ▸ XY Plot Viewer*. The containing folder is scanned so you can switch between its other data files. |
-| A folder | Right-click a folder → **Open Folder in XY Plot Viewer**, or run **XY Plot: Open Folder in XY Plot Viewer** from the Command Palette. |
+| A folder | Right-click a folder → **Open Folder in XY Plot Viewer**, or run **XY Plot: Open Folder in XY Plot Viewer** from the Command Palette. If you pick a folder from outside the workspace (an instrument's output folder, Downloads, …), its `.xy` / `.y` files are copied into the project first — see [Importing from outside the workspace](#importing-from-outside-the-workspace). |
 
 The custom editor is registered with priority `option`, so it never replaces the
 default text editor for `.xy` / `.y` — you opt in per file.
@@ -63,6 +66,8 @@ MisMatch_RunB
 2 12.500
 ```
 
+![Line plot of examples/match_scan_001.xy — Match_RunA in blue, MisMatch_RunB in orange, both crossing around the midpoint](https://raw.githubusercontent.com/y0dev/plotting_points_extension/main/examples/preview-match-scan.png)
+
 ### `.y` — one value per line, no names
 
 - `trim()`, skip blanks, `y = parseFloat(line)`, skip `NaN`.
@@ -75,7 +80,14 @@ MisMatch_RunB
 -3.301
 ```
 
-Example data lives in [`examples/`](examples/).
+![Histogram of examples/measurement_errors.y — 240 values in 20 bins, roughly split around zero](https://raw.githubusercontent.com/y0dev/plotting_points_extension/main/examples/preview-measurement-errors.png)
+
+Example data lives in [`examples/`](examples/). The two images above are
+generated previews (`node scripts/make-example-previews.mjs`) computed from
+the real example data with the same axis/gridline conventions the extension
+uses — not a captured screenshot, so there's no title/axis text baked in; for
+what the actual panel looks like, see the screenshots above and under
+[Theming](#theming).
 
 ---
 
@@ -90,17 +102,26 @@ input (min 2, max 200) applies to the histogram view.
 | **Line plot** | One `scatter` trace per visible dataset, `mode: "lines+markers"`, marker size 5, line & marker color = the dataset's resolved color. |
 | **Histogram** | One `histogram` trace per visible dataset over that dataset's **y-values**, `nbinsx = bins`, `opacity 0.6`, `barmode: "overlay"`. |
 
-### Datasets & Labels panel
+### The inspector
 
-Toggle it from the header. Per dataset: a color swatch (`<input type=color>`
-override) and a visibility checkbox, plus a case-insensitive name filter and
+The toolbar is deliberately minimal: a Line / Histogram switch and one gear
+button. Everything else — the file list, bins & legend, dataset colors /
+visibility, and the label fields below — lives in the inspector, a drawer that
+slides in from the right when you click the gear (and back out when you click
+it again); the plot fills the rest of the window either way.
+
+Inside it, per dataset: a color swatch (`<input type=color>` override) and a
+visibility checkbox, plus a case-insensitive name filter and
 **Show All** / **Hide All** / **Reset Colors**.
 
 **Title**, **X-axis label** and **Y-axis label** each have a *Set* button:
 
 - **Title** override is stored per original title.
-- In **line** mode, X / Y labels are per-title overrides that fall back to the
-  mode's global label. In **histogram** mode they set the mode's global label.
+- In **line** mode, X / Y labels are per-title overrides that fall back to a
+  file-name match in `xyPlot.namingRules` (see [Settings](#settings)), then to
+  the mode's global label. In **histogram** mode they set the mode's global
+  label directly — histogram's label is shared by every loaded file, so
+  per-file naming rules don't apply there.
 
 Field defaults: line — `xlabel "Run"`, `ylabel "Value"`; histogram —
 `bins 20`, `xlabel "Value"`, `ylabel "Count"`.
@@ -111,7 +132,7 @@ The status bar reads `"<file> — <n> dataset(s) — <mode> view"`.
 
 ## Config save / load
 
-**Save Config** (header button or **XY Plot: Save Config**) writes a JSON file —
+**Save Config** (inspector button or **XY Plot: Save Config**) writes a JSON file —
 by default `.vscode/xy-plot/xy_plot_config.json`, or wherever the Save dialog
 points. **Load Config** applies one back (tolerant of missing keys; same
 defaults as above; `showLegend` is treated as `!== false`).
@@ -146,9 +167,56 @@ A sample is at [`examples/xy_plot_config.json`](examples/xy_plot_config.json).
 | `xyPlot.defaultView` | `auto` | `auto` (line for `.xy`, histogram for `.y`), or force `line` / `histogram`. |
 | `xyPlot.palette` | 10-color default | Palette cycled by dataset index. |
 | `xyPlot.autoLoadConfig` | `false` | If an `xy_plot_config.json` sits next to the data files, load it when the viewer opens. |
+| `xyPlot.namingRules` | `[]` | Auto-fill a file's line-mode X/Y labels and title by file name — see below. |
+| `xyPlot.importFolder` | `"data"` | Where **Open Folder** copies files to when the folder you pick is outside the workspace — see below. |
 
-Per-file UI state (view mode, panel open, selected file) is remembered in
+Per-file UI state (view mode, inspector open, selected file) is remembered in
 `workspaceState`, keyed by the file URI.
+
+### Importing from outside the workspace
+
+`XY Plot: Open Folder in XY Plot Viewer` treats "inside" and "outside" the
+workspace differently:
+
+- **Inside** the workspace (including every use from the explorer
+  right-click, since that folder is by definition already part of it) — opens
+  in place, same as always. Nothing is copied.
+- **Outside** the workspace — the folder's `.xy` / `.y` files are **copied**
+  (never moved; the originals are left exactly where they were) into
+  `xyPlot.importFolder` under the first workspace folder, creating it if
+  needed, and it's those copies that open. A file already present at the
+  destination is left as-is, not overwritten, so re-importing the same source
+  folder only pulls in what's new.
+- No workspace open at all → there's nowhere to import into, so it falls back
+  to opening the original folder in place (with a warning).
+
+### `xyPlot.namingRules` — label a file by its name, not by hand
+
+An array of `{ match, xlabel?, ylabel?, title? }`. `match` is a small glob
+(only `*` is special) checked case-insensitively against a file's **original
+title** — its name with the extension stripped. Rules are checked in array
+order; when more than one matches, later rules override earlier ones
+field-by-field (not whole-rule replacement), so a broad rule can set a default
+and a narrower one just override one field:
+
+```jsonc
+// settings.json — global (User) or this workspace's .vscode/settings.json (local)
+"xyPlot.namingRules": [
+  { "match": "*", "xlabel": "Value" },
+  { "match": "match_scan_*", "xlabel": "Scan Position", "ylabel": "Signal Amplitude" },
+  { "match": "*_noise", "ylabel": "Noise (mV)" }
+]
+```
+
+Set it in **User settings** for a rule that should apply to every workspace,
+or in **this workspace's** `.vscode/settings.json` for project-specific rules
+— unlike a normal VS Code setting, the two are *merged* here (User rules
+first, Workspace rules appended and taking precedence on conflict), not one
+replacing the other.
+
+A label set through the inspector's **Set** buttons and saved to
+`xy_plot_config.json` always wins over a naming rule — naming rules only fill
+in a default, they never override something you typed.
 
 ---
 
@@ -184,7 +252,7 @@ high-contrast themes and re-renders when you switch themes.
 them with real captures:
 
 1. <kbd>F5</kbd> to launch the Extension Development Host.
-2. Open `examples/match_scan_001.xy`; open the Datasets & Labels panel.
+2. Open `examples/match_scan_001.xy`; click the gear icon to open the inspector.
 3. Set the color theme to a light theme (e.g. *Light Modern*), then
    *Developer: Capture Screenshot* (or your OS tool) → save as
    `images/screenshot-light.png`.
@@ -197,15 +265,16 @@ them with real captures:
 
 ```
 src/core/     pure — no vscode, no DOM. parseXY / parseY / parseDataFile,
-              color config, title/label overrides, visibility,
-              config serialize/deserialize. Ported from the source app and
-              unit-tested (test/).
+              color config, title/label overrides, visibility, naming-rule
+              matching (namingRules.ts), config serialize/deserialize. Ported
+              from the source app (parsing/plotting math) and unit-tested
+              (test/); namingRules.ts and the panel chrome are new, not ported.
 src/webview/  panel UI + Plotly wiring: renderLine / renderHistogram /
-              baseLayout / plotlyConfig, the DOM & event glue, theme
-              resolution, the partial Plotly bundle.
+              baseLayout / plotlyConfig, the DOM & event glue (toolbar, the
+              inspector drawer), theme resolution, the partial Plotly bundle.
 src/editor/   the CustomTextEditorProvider (webview HTML + CSP + nonce,
-              sibling-folder scan, workspaceState, config auto-load, message pump)
-              and the HTML template.
+              sibling-folder scan, workspaceState, config auto-load, naming-rule
+              scope merging, message pump) and the HTML template.
 src/commands/ open, openFolder, saveConfig, loadConfig.
 src/protocol.ts   typed host <-> webview messages.
 ```
@@ -213,6 +282,17 @@ src/protocol.ts   typed host <-> webview messages.
 Build: `esbuild.mjs` emits a Node/CJS bundle for the extension host and a
 browser/IIFE bundle (with Plotly) for the webview, and copies `ui.css`
 alongside Plotly's `webview.css`.
+
+---
+
+## Versions
+
+| Version | Highlights |
+| --- | --- |
+| 0.2.0 | Native-inspector redesign (toolbar + slide-out drawer, replacing the ported page layout); `xyPlot.namingRules` — auto-fill axis labels/title by file name. |
+| 0.1.0 | Initial release: line + histogram views, Datasets & Labels panel, config save/load, offline Plotly bundle. |
+
+Full details in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

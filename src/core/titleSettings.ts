@@ -33,6 +33,21 @@ export function getDisplayTitle(settings: TitleSettings, originalTitle: string):
   return o && o.displayTitle ? o.displayTitle : originalTitle;
 }
 
+/**
+ * Same as {@link getDisplayTitle}, plus a naming-rule-derived title as a
+ * second-tier fallback: an explicit saved override always wins, then a
+ * matching `xyPlot.namingRules` title, then the original title.
+ */
+export function resolveDisplayTitle(
+  settings: TitleSettings,
+  originalTitle: string,
+  namingTitle?: string,
+): string {
+  const o = settings.overrides[originalTitle];
+  if (o && o.displayTitle) return o.displayTitle;
+  return namingTitle || originalTitle;
+}
+
 export function getFieldOr<T>(
   settings: TitleSettings,
   originalTitle: string,

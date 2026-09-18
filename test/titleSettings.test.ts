@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   makeTitleSettings,
   getDisplayTitle,
+  resolveDisplayTitle,
   getFieldOr,
   setOverrideField,
 } from "../src/core/titleSettings";
@@ -47,5 +48,13 @@ describe("title / label overrides", () => {
     expect(s.overrides["t"]).toBeUndefined();
     setOverrideField(s, "t", "displayTitle", "T");
     expect(s.overrides["t"]).toEqual({ displayTitle: "T" });
+  });
+
+  it("resolveDisplayTitle layers override > naming-rule title > original title", () => {
+    const s = makeTitleSettings();
+    expect(resolveDisplayTitle(s, "scan_001")).toBe("scan_001");
+    expect(resolveDisplayTitle(s, "scan_001", "Scan Run")).toBe("Scan Run");
+    setOverrideField(s, "scan_001", "displayTitle", "Manual Title");
+    expect(resolveDisplayTitle(s, "scan_001", "Scan Run")).toBe("Manual Title");
   });
 });
