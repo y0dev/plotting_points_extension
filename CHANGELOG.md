@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — 2026-09-18
+
+- **Data Files** view now groups files by folder instead of one flat list:
+  a file at a workspace root is a plain leaf; anything in a subfolder is
+  grouped under a node labeled by that subfolder's relative path. Fixes two
+  files sharing a name in different folders reading as identical rows.
+- New `xyPlot.ignoreFolders` setting: an array of plain strings checked
+  against every directory segment of a file's path (never the file name) —
+  a directory is hidden from Data Files if its name *contains* any of the
+  terms, case-insensitively. Applies immediately. `node_modules` and `.git`
+  are always hidden regardless of this setting.
+- `src/core/ignoreFolders.ts`: pure `isIgnoredPath`, unit-tested (8 cases).
+
 ## 0.3.1 — 2026-09-18
 
 - Fixed: the "Open a .xy or .y file…" empty-state hint stayed visible over

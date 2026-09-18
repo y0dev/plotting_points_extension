@@ -9,4 +9,5 @@ export * from "./colorConfig";
 export * from "./titleSettings";
 export * from "./visibility";
 export * from "./namingRules";
+export * from "./ignoreFolders";
 export * from "./config";

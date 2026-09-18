@@ -2,7 +2,7 @@
   "name": "xy-plot-viewer",
   "displayName": "XY Plot Viewer",
   "description": "Open .xy / .y data files (or a whole folder) in a webview and plot them with Plotly — line plots and overlaid histograms. Runs fully offline.",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "publisher": "devdoesit",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -191,6 +191,12 @@
             "additionalProperties": false
           },
           "markdownDescription": "Auto-fill a file's X/Y axis labels and title by file name, so you don't have to set them by hand for every file. Rules are checked in order against the file name minus its extension; later matching rules override earlier ones field-by-field. A rule set with **Set Title / Set X Label / Set Y Label** in the panel always wins over a naming rule.\n\nSet this in **User settings** for a rule that applies everywhere, or in this workspace's `.vscode/settings.json` for project-specific rules — both apply, with workspace rules taking precedence on conflict."
+        },
+        "xyPlot.ignoreFolders": {
+          "type": "array",
+          "default": [],
+          "items": { "type": "string" },
+          "markdownDescription": "Hide files under a directory whose **name contains** one of these terms (case-insensitive) from the **Data Files** Activity Bar view — e.g. `\"archive\"` hides `archive/`, `old_archive/`, and `Archived_2024/` alike. Checked against every directory in a file's path, not just its immediate parent, and never against the file name itself. `node_modules` and `.git` are always hidden regardless of this setting. Applies immediately, no reload needed."
         }
       }
     }

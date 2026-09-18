@@ -33,21 +33,45 @@ default text editor for `.xy` / `.y` — you opt in per file.
 ### Data Files (Activity Bar)
 
 The Activity Bar icon opens a tree view, **Data Files**, listing every `.xy`
-/ `.y` file found anywhere in the workspace (sorted by relative path, folder
-shown as the item's description). It's a plain file browser, not a
+/ `.y` file found anywhere in the workspace. It's a plain file browser, not a
 per-editor list — clicking an item opens that file in its own editor tab via
 `xyPlot.open`, and switching between multiple open files is VS Code's own tab
 bar, the same as any other file type.
 
+- **Grouped by folder**, not one flat alphabetical list: a file sitting
+  directly at a workspace root is a plain leaf, and anything inside a
+  subfolder is grouped under a node labeled by that subfolder's relative
+  path (`data/run1`, `data/run2`, …). Two files sharing a name in different
+  folders (`data/run1/scan.xy` vs. `data/run2/scan.xy`) each read
+  unambiguously under their own folder instead of as two identical rows in
+  one flat list. Folders sort before root-level files; both alphabetically.
+- `xyPlot.ignoreFolders` hides files under a directory whose **name
+  contains** a term you list (case-insensitive) — see below.
+  `node_modules` and `.git` are always hidden regardless of this setting.
 - The $(refresh) button in the view's title bar re-scans the workspace; it
   also refreshes on its own when a `.xy` / `.y` file is created or deleted
   (including files `xyPlot.openFolder` copies in — see
-  [Importing from outside the workspace](#importing-from-outside-the-workspace)).
+  [Importing from outside the workspace](#importing-from-outside-the-workspace))
+  or when `xyPlot.ignoreFolders` changes.
 - No workspace open, or none found, shows a welcome message with a shortcut
   to **Open Folder in XY Plot Viewer**.
 - This replaced an earlier design where the file list lived inside the
   webview's inspector drawer — it's a workspace-wide browser now, not
   scoped to whichever file happens to be open.
+
+#### `xyPlot.ignoreFolders`
+
+An array of plain strings (no glob syntax) checked against every directory
+segment of a file's path — never the file name itself. A directory is
+ignored if its name *contains* any of the terms, so `"archive"` hides
+`archive/`, `old_archive/`, and `Archived_2024/` alike, at any depth:
+
+```jsonc
+"xyPlot.ignoreFolders": ["archive", "scratch", "_old"]
+```
+
+Set it in User or Workspace settings, same as `xyPlot.namingRules`; it takes
+effect immediately.
 
 ### Build from source
 
@@ -270,6 +294,7 @@ in a default, they never override something you typed.
 | `xyPlot.palette` | 10-color default | Palette cycled by dataset index. |
 | `xyPlot.autoLoadConfig` | `false` | If an `xy_plot_config.json` sits next to the data files, load it when the viewer opens. |
 | `xyPlot.importFolder` | `"data"` | Where **Open Folder** copies files to when the folder you pick is outside the workspace — see below. |
+| `xyPlot.ignoreFolders` | `[]` | Hide files under a directory whose name contains one of these terms from the **Data Files** view — see [above](#xyplotignorefolders). |
 
 Per-file UI state (view mode, inspector open, selected file) is remembered in
 `workspaceState`, keyed by the file URI.
@@ -339,9 +364,11 @@ them with real captures:
 ```
 src/core/     pure — no vscode, no DOM. parseXY / parseY / parseDataFile,
               color config, title/label overrides, visibility, naming-rule
-              matching (namingRules.ts), config serialize/deserialize. Ported
-              from the source app (parsing/plotting math) and unit-tested
-              (test/); namingRules.ts and the panel chrome are new, not ported.
+              matching (namingRules.ts), ignore-folder matching
+              (ignoreFolders.ts), config serialize/deserialize. Ported from
+              the source app (parsing/plotting math) and unit-tested (test/);
+              namingRules.ts, ignoreFolders.ts and the panel chrome are new,
+              not ported.
 src/webview/  panel UI + Plotly wiring: renderLine / renderHistogram /
               baseLayout / plotlyConfig, the DOM & event glue (toolbar, the
               inspector drawer), theme resolution, the partial Plotly bundle.
@@ -349,9 +376,10 @@ src/editor/   the CustomTextEditorProvider (webview HTML + CSP + nonce,
               sibling-folder scan, workspaceState, config auto-load, naming-rule
               scope merging, message pump) and the HTML template.
 src/commands/ open, openFolder, saveConfig.
-src/views/    DataFilesProvider — the "Data Files" Activity Bar tree view
-              (workspace-wide file browser + a FileSystemWatcher-driven
-              refresh), independent of the webview / custom editor.
+src/views/    DataFilesProvider — the "Data Files" Activity Bar tree view:
+              groups files by folder, applies xyPlot.ignoreFolders, refreshes
+              on a FileSystemWatcher or a config change. Independent of the
+              webview / custom editor.
 src/protocol.ts   typed host <-> webview messages.
 ```
 
@@ -365,6 +393,7 @@ alongside Plotly's `webview.css`.
 
 | Version | Highlights |
 | --- | --- |
+| 0.4.0 | Data Files grouped by folder (no more identical-name confusion); new `xyPlot.ignoreFolders` setting. |
 | 0.3.0 | Data Files moved to an Activity Bar view; full dataset names on hover; mouse-wheel zoom; the broken "download png" button removed; Load Config removed in favor of `xyPlot.autoLoadConfig`; live-updating `xyPlot.namingRules`; README Configuration walkthrough. |
 | 0.2.0 | Native-inspector redesign (toolbar + slide-out drawer, replacing the ported page layout); `xyPlot.namingRules` — auto-fill axis labels/title by file name. |
 | 0.1.0 | Initial release: line + histogram views, Datasets & Labels panel, config save/load, offline Plotly bundle. |
